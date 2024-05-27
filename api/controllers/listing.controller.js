@@ -1,5 +1,7 @@
 import Listing from "../models/listing.model.js";
 import { errorHandler } from "../utils/error.js";
+import RentalRequest from "../models/rentalRequest.model.js";
+import User from "../models/user.model.js";
 
 export const createListing = async (req, res, next) => {
     try {
@@ -108,3 +110,81 @@ export const getListings = async (req, res, next) => {
         next(error);
     }
 };
+
+export const requestListing = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId, message } = req.body;
+
+        const listing = await Listing.findById(id);
+        if (!listing) {
+            return res.status(404).json({ message: 'Listing not found' });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const rentalRequest = new RentalRequest({
+            listing: listing._id,
+            user: user._id,
+            message
+        });
+
+        await rentalRequest.save();
+
+        listing.rentalRequests.push(rentalRequest._id);
+        await listing.save();
+
+        res.status(201).json(rentalRequest);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+export const getRequestListing = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const listing = await Listing.findById(id).populate({
+            path: 'rentalRequests',
+            populate: {
+                path: 'user',
+                select: 'username email'
+            }
+        });
+
+        if (!listing) {
+            return res.status(404).json({ message: 'Listing not found' });
+        }
+
+        res.status(200).json(listing.rentalRequests);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+export const updateRentRequestStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Validate status
+        if (!['accepted', 'rejected'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid status' });
+        }
+
+        const rentalRequest = await RentalRequest.findById(id);
+        if (!rentalRequest) {
+            return res.status(404).json({ message: 'Rental request not found' });
+        }
+
+        rentalRequest.status = status;
+        await rentalRequest.save();
+
+        res.status(200).json(rentalRequest);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}

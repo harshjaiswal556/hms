@@ -52,7 +52,11 @@ const listingSchema = new mongoose.Schema({
     useRef: {
         type: String,
         required: true
-    }
+    },
+    rentalRequests: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'RentalRequest'
+    }]
 
 }, {
     timestamps: true
